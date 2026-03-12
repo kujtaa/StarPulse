@@ -302,7 +302,7 @@ class Pusher(object):
         try:
             resp = urlopen(req, timeout=15)
             resp.read()
-            log.debug("Pushed %d alerts -> %s (%s)", len(alerts), url, resp.status)
+            log.info("Heartbeat OK -> %s (alerts=%d, status=%s)", url, len(alerts), resp.status)
         except Exception as exc:
             log.warning("Push failed (%s) — re-queuing %d alerts", exc, len(alerts))
             self.am.requeue(alerts)
