@@ -61,13 +61,17 @@ class IngestController extends Controller
             $agent->update(['last_seen' => now(), 'offline_alerted' => false]);
         }
 
+        $connectingIp = $request->ip();
+        $agentHostname = $data['hostname'] ?? null;
+
         Agent::where('organization_id', $orgId)
             ->where('id', '!=', $agent->id)
             ->whereNull('last_seen')
             ->whereNotNull('registered_address')
-            ->where(function ($q) use ($request) {
-                $q->where('registered_address', $request->ip())
-                  ->orWhere('ip', $request->ip());
+            ->where(function ($q) use ($connectingIp, $agentHostname) {
+                $q->where('registered_address', $connectingIp)
+                  ->when($agentHostname, fn ($q2) => $q2->orWhere('registered_address', $agentHostname)
+                      ->orWhere('hostname', $agentHostname));
             })
             ->delete();
 
