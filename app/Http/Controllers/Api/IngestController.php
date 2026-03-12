@@ -14,6 +14,10 @@ class IngestController extends Controller
 {
     public function store(Request $request)
     {
+        // #region agent log
+        Log::info('[DEBUG-f673df] IngestController::store HIT', ['ip' => $request->ip(), 'hasToken' => $request->hasHeader('X-Sentinel-Token')]);
+        // #endregion
+
         $tokenValue = $request->header('X-Sentinel-Token');
         if (! $tokenValue) {
             return response()->json(['error' => 'Missing token'], 401);
@@ -57,6 +61,10 @@ class IngestController extends Controller
 
         $registeredAddress = $pendingMatch?->registered_address;
         $pendingMatch?->delete();
+
+        // #region agent log
+        Log::info('[DEBUG-f673df] Token valid, creating agent', ['orgId' => $orgId, 'agent_id' => $data['agent_id'], 'hostname' => $data['hostname'] ?? null]);
+        // #endregion
 
         $agent = Agent::updateOrCreate(
             ['id' => $data['agent_id'], 'organization_id' => $orgId],
