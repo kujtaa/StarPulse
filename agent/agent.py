@@ -284,8 +284,6 @@ class Pusher(object):
 
     def _push(self):
         alerts = self.am.drain()
-        if not alerts:
-            return
         payload = {
             "agent_id": self.agent_id,
             "hostname": _hostname(),
