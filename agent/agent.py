@@ -775,6 +775,10 @@ class HAD(object):
         cnt_403 = 0
         cnt_5xx = 0
         ip_counts = collections.Counter()
+        ip_by_status = {"404": collections.Counter(), "403": collections.Counter(), "5xx": collections.Counter()}
+        samples = {"404": [], "403": [], "5xx": []}
+        max_samples = 15
+
         for line in lines:
             m = self._LOG_RE.match(line)
             if not m:
@@ -784,45 +788,58 @@ class HAD(object):
             ip_counts[ip] += 1
             if status == "404":
                 cnt_404 += 1
+                ip_by_status["404"][ip] += 1
+                if len(samples["404"]) < max_samples:
+                    samples["404"].append(line.strip()[:300])
             elif status == "403":
                 cnt_403 += 1
+                ip_by_status["403"][ip] += 1
+                if len(samples["403"]) < max_samples:
+                    samples["403"].append(line.strip()[:300])
             elif status.startswith("5"):
                 cnt_5xx += 1
+                ip_by_status["5xx"][ip] += 1
+                if len(samples["5xx"]) < max_samples:
+                    samples["5xx"].append(line.strip()[:300])
 
         now = time.time()
         cooldown = 120
 
         if cnt_404 >= self.threshold_404 and self._can_fire("404", now, cooldown):
+            top_ips = [{"ip": ip, "count": c} for ip, c in ip_by_status["404"].most_common(5)]
             self.am.fire(
                 "http_anomaly", "high",
                 "High 404 rate",
                 "{} 404 responses in scan window".format(cnt_404),
-                {"count_404": str(cnt_404)},
+                {"count_404": str(cnt_404), "top_ips": top_ips, "sample_logs": samples["404"]},
             )
 
         if cnt_403 >= self.threshold_403 and self._can_fire("403", now, cooldown):
+            top_ips = [{"ip": ip, "count": c} for ip, c in ip_by_status["403"].most_common(5)]
             self.am.fire(
                 "http_anomaly", "high",
                 "High 403 rate",
                 "{} 403 responses in scan window".format(cnt_403),
-                {"count_403": str(cnt_403)},
+                {"count_403": str(cnt_403), "top_ips": top_ips, "sample_logs": samples["403"]},
             )
 
         if cnt_5xx >= self.threshold_500 and self._can_fire("5xx", now, cooldown):
+            top_ips = [{"ip": ip, "count": c} for ip, c in ip_by_status["5xx"].most_common(5)]
             self.am.fire(
                 "http_anomaly", "medium",
                 "Elevated 5xx errors",
                 "{} server errors in scan window".format(cnt_5xx),
-                {"count_5xx": str(cnt_5xx)},
+                {"count_5xx": str(cnt_5xx), "top_ips": top_ips, "sample_logs": samples["5xx"]},
             )
 
         for ip, cnt in ip_counts.most_common(10):
             if cnt >= self.threshold_ip and self._can_fire("ip_" + ip, now, cooldown):
+                ip_samples = [l.strip()[:300] for l in lines if l.startswith(ip)][:max_samples]
                 self.am.fire(
                     "http_anomaly", "high",
                     "IP request flood",
                     "{} requests from {} in scan window".format(cnt, ip),
-                    {"ip": ip, "count": str(cnt)},
+                    {"ip": ip, "count": str(cnt), "sample_logs": ip_samples},
                 )
 
     def _can_fire(self, key, now, cooldown):

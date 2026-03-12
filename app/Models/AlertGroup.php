@@ -70,7 +70,7 @@ class AlertGroup extends Model
                 'default' => "Potential crypto mining activity detected. This is a critical security event:\n\n1. Check running processes: `ps aux | grep -i -E 'xmrig|minerd|cpuminer'`\n2. Check CPU usage: `top -bn1 | head -20`\n3. Inspect cron jobs: `crontab -l` and `ls /etc/cron.*`\n4. Check for suspicious network connections: `ss -tunp | grep -E '3333|4444|5555'`\n5. Kill suspicious processes, remove binaries, and audit how access was gained",
             ],
             'http_anomaly' => [
-                'default' => "Unusual HTTP traffic patterns detected. This could indicate a scanning attack, brute force, or DDoS:\n\n1. Review access logs: `tail -100 /var/log/nginx/access.log`\n2. Look for repeated IPs: `awk '{print \$1}' /var/log/nginx/access.log | sort | uniq -c | sort -rn | head`\n3. Consider rate-limiting with fail2ban or Cloudflare WAF rules\n4. Block offending IPs if confirmed malicious: `ufw deny from <IP>`",
+                'default' => null,
             ],
             'network' => [
                 'default' => "Suspicious network activity detected. Investigate open connections and listening ports:\n\n1. Check listening ports: `ss -tlnp`\n2. Check established connections: `ss -tnp`\n3. Look for connections to known-bad ports or IPs\n4. Review firewall rules: `ufw status` or `iptables -L -n`\n5. If a new service appeared, verify it's authorized",
@@ -83,7 +83,11 @@ class AlertGroup extends Model
             ],
         ];
 
-        $categorySuggestions = $suggestions[$category] ?? $suggestions['file_integrity'] ?? [];
+        if ($category === 'http_anomaly') {
+            return $this->buildHttpSuggestion();
+        }
+
+        $categorySuggestions = $suggestions[$category] ?? [];
 
         foreach ($categorySuggestions as $keyword => $suggestion) {
             if ($keyword !== 'default' && str_contains($title, $keyword)) {
@@ -92,5 +96,45 @@ class AlertGroup extends Model
         }
 
         return $categorySuggestions['default'] ?? 'Review this alert and investigate the affected system. Check server logs and recent changes for context.';
+    }
+
+    protected function buildHttpSuggestion(): string
+    {
+        $data = $this->last_data ?? [];
+        $topIps = $data['top_ips'] ?? [];
+        $hasLogs = ! empty($data['sample_logs']);
+        $title = strtolower($this->title);
+
+        $lines = [];
+
+        if (str_contains($title, '404')) {
+            $lines[] = "**High 404 rate detected.** This usually means bots or scanners are probing for vulnerable paths (wp-admin, .env, phpMyAdmin, etc.).";
+        } elseif (str_contains($title, '403')) {
+            $lines[] = "**High 403 rate detected.** Repeated forbidden requests suggest brute-force attempts or scanners hitting protected endpoints.";
+        } elseif (str_contains($title, '5xx') || str_contains($title, 'error')) {
+            $lines[] = "**Elevated server errors.** Check your application logs for crashes, database connection issues, or resource exhaustion.";
+        } elseif (str_contains($title, 'flood')) {
+            $lines[] = "**IP request flood detected.** A single IP is sending an abnormal volume of requests — likely a bot, scraper, or attack.";
+        } else {
+            $lines[] = "**Unusual HTTP traffic pattern detected.** Review the log samples above for context.";
+        }
+
+        if (! empty($topIps)) {
+            $lines[] = "\n**Based on the log data, the top offending IPs are listed above.** Recommended actions:";
+            foreach (array_slice($topIps, 0, 3) as $entry) {
+                $lines[] = "- Block `{$entry['ip']}` if not a known user: `ufw deny from {$entry['ip']}`";
+            }
+        }
+
+        if ($hasLogs) {
+            $lines[] = "\nReview the **Log Samples** section above to identify the requested paths and patterns.";
+        }
+
+        $lines[] = "\n**General recommendations:**";
+        $lines[] = "1. Set up **fail2ban** to auto-block repeat offenders";
+        $lines[] = "2. Add rate limiting in your Nginx config or Cloudflare WAF";
+        $lines[] = "3. If the IPs are from known bot networks, consider geo-blocking";
+
+        return implode("\n", $lines);
     }
 }

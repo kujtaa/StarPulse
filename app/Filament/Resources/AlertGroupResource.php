@@ -119,11 +119,41 @@ class AlertGroupResource extends Resource
                                     ->markdown()
                                     ->columnSpanFull()
                                     ->placeholder('No detail provided'),
-                                Infolists\Components\KeyValueEntry::make('last_data')
-                                    ->label('Alert Data')
+                            ]),
+                        Infolists\Components\Section::make('Top Offending IPs')
+                            ->icon('heroicon-o-globe-alt')
+                            ->visible(fn (AlertGroup $record): bool => ! empty($record->last_data['top_ips'] ?? null))
+                            ->schema([
+                                Infolists\Components\TextEntry::make('top_ips_display')
+                                    ->hiddenLabel()
+                                    ->getStateUsing(function (AlertGroup $record): string {
+                                        $ips = $record->last_data['top_ips'] ?? [];
+                                        $lines = [];
+                                        foreach ($ips as $entry) {
+                                            $lines[] = "**{$entry['ip']}** — {$entry['count']} requests";
+                                        }
+
+                                        return implode("\n\n", $lines) ?: 'No IP data';
+                                    })
+                                    ->markdown()
+                                    ->columnSpanFull(),
+                            ]),
+                        Infolists\Components\Section::make('Log Samples')
+                            ->icon('heroicon-o-document-text')
+                            ->description('Actual log lines from the server at the time of the alert')
+                            ->visible(fn (AlertGroup $record): bool => ! empty($record->last_data['sample_logs'] ?? null))
+                            ->collapsible()
+                            ->schema([
+                                Infolists\Components\TextEntry::make('sample_logs_display')
+                                    ->hiddenLabel()
+                                    ->getStateUsing(function (AlertGroup $record): string {
+                                        $logs = $record->last_data['sample_logs'] ?? [];
+
+                                        return "```\n".implode("\n", $logs)."\n```";
+                                    })
+                                    ->markdown()
                                     ->columnSpanFull()
-                                    ->placeholder('No structured data')
-                                    ->visible(fn (AlertGroup $record): bool => ! empty($record->last_data)),
+                                    ->prose(),
                             ]),
                         Infolists\Components\Section::make('Recommended Action')
                             ->icon('heroicon-o-light-bulb')
