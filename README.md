@@ -1,138 +1,59 @@
-# Sentinel V3
+<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
-Multi-tenant SaaS platform for Linux security monitoring. Companies register, add their servers, and monitor security events from a unified dashboard.
+<p align="center">
+<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
+<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
+<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
+<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
+</p>
 
-Zero external dependencies — built entirely with Python 3 stdlib.
+## About Laravel
 
-## Architecture
+Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
 
-```
-┌──────────────────────────────────────────────────────┐
-│                 Sentinel Platform                      │
-│  ┌──────────────────────────────────────────────────┐ │
-│  │  Organization: Acme Corp                          │ │
-│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐          │ │
-│  │  │ Agent 1  │  │ Agent 2  │  │ Agent 3  │ ──────► │ │
-│  │  │ web-01   │  │ db-01    │  │ api-01   │         │ │
-│  │  └─────────┘  └─────────┘  └─────────┘          │ │
-│  └──────────────────────────────────────────────────┘ │
-│  ┌──────────────────────────────────────────────────┐ │
-│  │  Organization: Startup Inc                        │ │
-│  │  ┌─────────┐  ┌─────────┐                        │ │
-│  │  │ Agent 1  │  │ Agent 2  │ ──────────────────►   │ │
-│  │  │ prod-01  │  │ staging  │                       │ │
-│  │  └─────────┘  └─────────┘                        │ │
-│  └──────────────────────────────────────────────────┘ │
-│                                                        │
-│  Central Server: REST API + Dashboard + SQLite         │
-└──────────────────────────────────────────────────────┘
-```
+- [Simple, fast routing engine](https://laravel.com/docs/routing).
+- [Powerful dependency injection container](https://laravel.com/docs/container).
+- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
+- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
+- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
+- [Robust background job processing](https://laravel.com/docs/queues).
+- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
 
-## Quick Start
+Laravel is accessible, powerful, and provides tools required for large, robust applications.
 
-### 1. Deploy the Platform
+## Learning Laravel
 
-```bash
-# On your VPS (requires root)
-git clone <repo-url> sentinel-v3
-cd sentinel-v3
-sudo bash setup.sh
-sudo systemctl start sentinel-central
-```
+Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
 
-### 2. Register Your Organization
+If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
 
-Open `http://YOUR_VPS:8765/register` in your browser and create your account.
+## Laravel Sponsors
 
-### 3. Create an API Token
+We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
 
-Go to **Settings** → **API Tokens** → Create a new token.
+### Premium Partners
 
-### 4. Install Agents
+- **[Vehikl](https://vehikl.com)**
+- **[Tighten Co.](https://tighten.co)**
+- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
+- **[64 Robots](https://64robots.com)**
+- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
+- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
+- **[Redberry](https://redberry.international/laravel-development)**
+- **[Active Logic](https://activelogic.com)**
 
-On each server you want to monitor:
+## Contributing
 
-```bash
-curl -sSL http://YOUR_VPS:8765/install.sh | \
-  SENTINEL_SERVER=http://YOUR_VPS:8765 SENTINEL_TOKEN=your-api-token bash
-```
+Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
 
-The server appears on your dashboard immediately.
+## Code of Conduct
 
-### Docker (Alternative)
+In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
 
-```bash
-sudo bash setup.sh
-docker-compose up -d
-```
+## Security Vulnerabilities
 
-## Multi-Tenancy
+If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
 
-Each organization gets:
-- **Isolated data** — agents and alerts are scoped to the org
-- **Own API tokens** — generate as many as needed for different environments
-- **Team access** — multiple users per org (owner, admin, member roles)
-- **Dedicated dashboard** — see only your servers and alerts
+## License
 
-## Project Structure
-
-```
-sentinel-v3/
-├── setup.sh                    ← Platform setup wizard
-├── docker-compose.yml          ← Docker deployment
-├── README.md
-├── central/
-│   ├── server.py               ← Central server (single file)
-│   └── dashboard/
-│       └── index.html          ← Dashboard UI (single file)
-└── agent/
-    ├── agent.py                ← Security agent (single file)
-    └── install.sh              ← Universal installer
-```
-
-## Detection Modules
-
-| Module | Category | What it detects |
-|--------|----------|-----------------|
-| **FIM** | `file_integrity` | Modified system binaries, suspicious files in /tmp |
-| **CMD** | `crypto_mining` | Known miners, high CPU processes, mining pool connections, cron injection |
-| **HAD** | `http_anomaly` | 404/403 floods, request spikes, scanner patterns |
-| **NAD** | `network` | Suspicious port connections, new listeners, DNS tampering |
-
-## Dashboard Pages
-
-- **Overview** — Live stats, 24h sparkline, severity/category breakdown
-- **Servers** — All monitored servers with online/offline status
-- **All Alerts** — Filterable, paginated alert feed
-- **Install Agent** — Token-aware install command with copy button
-- **Settings** — API token management, organization info
-
-## API Endpoints
-
-### Public
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/register` | Registration page |
-| POST | `/register` | Create organization + user |
-| GET | `/login` | Login page |
-| POST | `/login` | Authenticate user |
-| POST | `/api/ingest` | Agent data push (token auth) |
-| GET | `/api/status` | Health check |
-
-### Authenticated (session cookie)
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/me` | Current user + org info |
-| GET | `/api/agents` | List org's agents |
-| GET | `/api/alerts` | Paginated org alerts |
-| GET | `/api/stats` | Dashboard statistics |
-| GET | `/api/tokens` | List API tokens |
-| POST | `/api/tokens` | Create new token |
-| DELETE | `/api/tokens/:id` | Delete a token |
-
-## Coding Rules
-
-- **No external dependencies** — stdlib only
-- **Single-file constraint** — each component is one file
-- **No build step** — dashboard is vanilla HTML/CSS/JS
-- **Python 3.6+** compatible
+The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
