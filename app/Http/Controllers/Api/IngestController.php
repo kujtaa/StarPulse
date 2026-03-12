@@ -61,6 +61,16 @@ class IngestController extends Controller
             $agent->update(['last_seen' => now(), 'offline_alerted' => false]);
         }
 
+        Agent::where('organization_id', $orgId)
+            ->where('id', '!=', $agent->id)
+            ->whereNull('last_seen')
+            ->whereNotNull('registered_address')
+            ->where(function ($q) use ($request) {
+                $q->where('registered_address', $request->ip())
+                  ->orWhere('ip', $request->ip());
+            })
+            ->delete();
+
         $newCount = 0;
         $alerts = $data['alerts'] ?? [];
 

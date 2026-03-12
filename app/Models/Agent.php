@@ -19,6 +19,7 @@ class Agent extends Model
         'organization_id',
         'hostname',
         'ip',
+        'registered_address',
         'os_info',
         'agent_ver',
         'first_seen',
@@ -55,6 +56,20 @@ class Agent extends Model
         return $this->last_seen && $this->last_seen->greaterThan(Carbon::now()->subSeconds(120));
     }
 
+    public function getIsPendingAttribute(): bool
+    {
+        return is_null($this->last_seen) && ! is_null($this->registered_address);
+    }
+
+    public function getStatusAttribute(): string
+    {
+        if ($this->is_pending) {
+            return 'Pending';
+        }
+
+        return $this->is_online ? 'Online' : 'Offline';
+    }
+
     public function scopeOnline(Builder $query): Builder
     {
         return $query->where('last_seen', '>=', Carbon::now()->subSeconds(120));
@@ -62,9 +77,11 @@ class Agent extends Model
 
     public function scopeOffline(Builder $query): Builder
     {
-        return $query->where(function (Builder $q) {
-            $q->whereNull('last_seen')
-              ->orWhere('last_seen', '<', Carbon::now()->subSeconds(120));
-        });
+        return $query->where('last_seen', '<', Carbon::now()->subSeconds(120));
+    }
+
+    public function scopePending(Builder $query): Builder
+    {
+        return $query->whereNull('last_seen')->whereNotNull('registered_address');
     }
 }

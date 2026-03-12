@@ -33,16 +33,29 @@ class AgentResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('is_online')
+                Tables\Columns\TextColumn::make('status')
                     ->label('Status')
                     ->badge()
-                    ->getStateUsing(fn (Agent $record): string => $record->is_online ? 'Online' : 'Offline')
-                    ->color(fn (string $state): string => $state === 'Online' ? 'success' : 'danger')
-                    ->icon(fn (string $state): string => $state === 'Online' ? 'heroicon-o-check-circle' : 'heroicon-o-x-circle'),
+                    ->getStateUsing(fn (Agent $record): string => $record->status)
+                    ->color(fn (string $state): string => match ($state) {
+                        'Online' => 'success',
+                        'Pending' => 'warning',
+                        default => 'danger',
+                    })
+                    ->icon(fn (string $state): string => match ($state) {
+                        'Online' => 'heroicon-o-check-circle',
+                        'Pending' => 'heroicon-o-clock',
+                        default => 'heroicon-o-x-circle',
+                    }),
 
                 Tables\Columns\TextColumn::make('hostname')
                     ->searchable()
                     ->sortable(),
+
+                Tables\Columns\TextColumn::make('registered_address')
+                    ->label('Address')
+                    ->searchable()
+                    ->toggleable(),
 
                 Tables\Columns\TextColumn::make('ip')
                     ->label('IP')
@@ -77,11 +90,13 @@ class AgentResource extends Resource
                     ->options([
                         'online' => 'Online',
                         'offline' => 'Offline',
+                        'pending' => 'Pending',
                     ])
                     ->query(function (Builder $query, array $data): Builder {
                         return match ($data['value']) {
                             'online' => $query->online(),
                             'offline' => $query->offline(),
+                            'pending' => $query->pending(),
                             default => $query,
                         };
                     }),
