@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sentinel V3 — Security Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Syne+Mono&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --void:#05080d;
+  --surface:#090e15;
+  --raised:#0d1520;
+  --cyan:#00e5ff;
+  --green:#00e676;
+  --yellow:#ffd740;
+  --orange:#ff9100;
+  --red:#ff3d71;
+  --text:#e0e6ed;
+  --text-dim:#6b7a8d;
+  --border:#151e2b;
+  --mono:'Syne Mono',monospace;
+  --sans:'Syne',sans-serif;
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--sans);background:var(--void);color:var(--text);display:flex}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--void)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text-dim)}
+
+/* ── Sidebar ── */
+.sidebar{
+  width:220px;min-width:220px;height:100vh;
+  background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;padding:0;
+  position:relative;z-index:10;
+}
+.sidebar-brand{
+  padding:24px 20px 20px;display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid var(--border);
+}
+.sidebar-brand svg{flex-shrink:0}
+.sidebar-brand h1{font-size:15px;font-weight:700;letter-spacing:.5px;color:var(--text)}
+.sidebar-brand span{font-family:var(--mono);font-size:10px;color:var(--cyan);
+  background:rgba(0,229,255,.08);padding:2px 6px;border-radius:4px;margin-left:auto}
+
+.sidebar-nav{flex:1;padding:12px 10px;display:flex;flex-direction:column;gap:2px}
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;border-radius:8px;cursor:pointer;
+  font-size:13px;font-weight:500;color:var(--text-dim);
+  transition:all .2s ease;position:relative;
+}
+.nav-item:hover{background:rgba(0,229,255,.04);color:var(--text)}
+.nav-item.on{background:rgba(0,229,255,.08);color:var(--cyan)}
+.nav-item.on::before{
+  content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);
+  width:3px;height:20px;background:var(--cyan);border-radius:0 3px 3px 0;
+}
+.nav-item svg{width:18px;height:18px;flex-shrink:0;opacity:.6}
+.nav-item.on svg{opacity:1}
+
+.sidebar-footer{
+  padding:16px 20px;border-top:1px solid var(--border);
+  display:flex;flex-direction:column;gap:8px;
+}
+.org-info{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.org-name{
+  font-family:var(--mono);font-size:11px;color:var(--text);
+  font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  max-width:120px;
+}
+.logout-link{
+  font-family:var(--mono);font-size:10px;color:var(--text-dim);
+  text-decoration:none;transition:color .2s;flex-shrink:0;
+}
+.logout-link:hover{color:var(--red)}
+
+/* ── Main ── */
+.main{flex:1;height:100vh;overflow-y:auto;overflow-x:hidden;padding:24px 28px 40px}
+.main-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:24px;
+}
+.main-header h2{font-size:22px;font-weight:700}
+.main-header .refresh-info{
+  font-family:var(--mono);font-size:11px;color:var(--text-dim);
+  display:flex;align-items:center;gap:6px;
+}
+
+/* ── Pages ── */
+.page{display:none;animation:fadeUp .3s ease}
+.page.on{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ── Cards ── */
+.card{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  overflow:hidden;transition:border-color .2s,box-shadow .2s;
+}
+.card:hover{border-color:rgba(0,229,255,.15);box-shadow:0 0 20px rgba(0,229,255,.03)}
+.card-header{
+  padding:14px 18px;background:var(--raised);
+  border-bottom:1px solid var(--border);
+  font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);
+  display:flex;align-items:center;gap:8px;
+}
+.card-body{padding:18px}
+
+/* ── Stat Cards ── */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:20px;position:relative;overflow:hidden;transition:all .2s;
+}
+.stat-card:hover{border-color:rgba(0,229,255,.15)}
+.stat-card .stat-label{
+  font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;
+  color:var(--text-dim);margin-bottom:8px;
+}
+.stat-card .stat-value{
+  font-family:var(--mono);font-size:28px;font-weight:400;color:var(--text);
+}
+.stat-card .stat-accent{
+  position:absolute;top:0;right:0;width:60px;height:60px;
+  border-radius:0 12px 0 40px;opacity:.08;
+}
+
+/* ── Sparkline ── */
+.spark-wrap{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:20px;margin-bottom:24px;
+}
+.spark-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:14px}
+.spark-bars{display:flex;align-items:flex-end;gap:3px;height:80px}
+.spark-bar{
+  flex:1;min-width:0;border-radius:3px 3px 0 0;
+  background:var(--cyan);opacity:.5;transition:all .3s ease;
+  position:relative;cursor:pointer;
+}
+.spark-bar:hover{opacity:1}
+.spark-bar::after{
+  content:attr(data-val);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);
+  font-family:var(--mono);font-size:9px;color:var(--cyan);
+  opacity:0;transition:opacity .2s;white-space:nowrap;padding-bottom:4px;
+}
+.spark-bar:hover::after{opacity:1}
+.spark-labels{display:flex;justify-content:space-between;margin-top:6px;
+  font-family:var(--mono);font-size:9px;color:var(--text-dim)}
+
+/* ── Overview Grid ── */
+.overview-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+@media(max-width:900px){.overview-grid{grid-template-columns:1fr}}
+
+.cat-list{display:flex;flex-direction:column;gap:8px}
+.cat-row{
+  display:flex;align-items:center;gap:10px;padding:10px 14px;
+  background:var(--raised);border-radius:8px;
+}
+.cat-icon{font-size:16px;width:28px;text-align:center}
+.cat-name{font-size:13px;font-weight:500;flex:1}
+.cat-count{font-family:var(--mono);font-size:14px;color:var(--cyan)}
+
+.recent-alerts-list{display:flex;flex-direction:column;gap:6px}
+.recent-alert{
+  display:flex;align-items:center;gap:10px;padding:10px 14px;
+  background:var(--raised);border-radius:8px;cursor:pointer;transition:background .2s;
+}
+.recent-alert:hover{background:rgba(0,229,255,.05)}
+
+/* ── Severity Badge ── */
+.sev-badge{
+  font-family:var(--mono);font-size:10px;font-weight:400;
+  padding:3px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:.5px;
+  white-space:nowrap;
+}
+.sev-critical{background:rgba(255,61,113,.12);color:var(--red)}
+.sev-high{background:rgba(255,145,0,.12);color:var(--orange)}
+.sev-medium{background:rgba(255,215,64,.12);color:var(--yellow)}
+.sev-low{background:rgba(0,229,255,.12);color:var(--cyan)}
+
+/* ── Servers ── */
+.search-bar{
+  display:flex;align-items:center;gap:12px;margin-bottom:20px;
+}
+.search-bar input{
+  flex:1;background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:10px 14px;color:var(--text);font-family:var(--sans);font-size:13px;
+  outline:none;transition:border-color .2s;
+}
+.search-bar input:focus{border-color:var(--cyan)}
+.search-bar input::placeholder{color:var(--text-dim)}
+
+.servers-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.server-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:18px;cursor:pointer;transition:all .2s;position:relative;
+}
+.server-card:hover{border-color:rgba(0,229,255,.2);transform:translateY(-1px);
+  box-shadow:0 4px 20px rgba(0,0,0,.3)}
+.server-card.offline{border-color:rgba(255,61,113,.15)}
+.server-top{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.status-dot.online{background:var(--green);box-shadow:0 0 8px rgba(0,230,118,.4)}
+.status-dot.offline{background:var(--red);box-shadow:0 0 8px rgba(255,61,113,.4)}
+.server-hostname{font-size:14px;font-weight:600;flex:1}
+.server-meta{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-top:8px}
+.server-meta-item{display:flex;flex-direction:column;gap:2px}
+.server-meta-label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim)}
+.server-meta-value{font-family:var(--mono);font-size:12px;color:var(--text)}
+.server-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}
+.server-tag{
+  font-family:var(--mono);font-size:10px;color:var(--cyan);
+  background:rgba(0,229,255,.06);padding:2px 8px;border-radius:4px;
+}
+
+/* ── Alerts ── */
+.filter-bar{
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:20px;
+}
+.filter-btn{
+  font-family:var(--mono);font-size:11px;
+  padding:6px 14px;border-radius:6px;border:1px solid var(--border);
+  background:transparent;color:var(--text-dim);cursor:pointer;transition:all .2s;
+}
+.filter-btn:hover{border-color:var(--cyan);color:var(--text)}
+.filter-btn.on{background:rgba(0,229,255,.1);border-color:var(--cyan);color:var(--cyan)}
+.filter-sep{width:1px;height:20px;background:var(--border)}
+.filter-bar input{
+  flex:1;min-width:180px;background:var(--surface);border:1px solid var(--border);
+  border-radius:6px;padding:6px 12px;color:var(--text);font-family:var(--sans);
+  font-size:12px;outline:none;transition:border-color .2s;
+}
+.filter-bar input:focus{border-color:var(--cyan)}
+.filter-bar input::placeholder{color:var(--text-dim)}
+.filter-bar select{
+  background:var(--surface);border:1px solid var(--border);border-radius:6px;
+  padding:6px 10px;color:var(--text);font-family:var(--sans);font-size:12px;
+  outline:none;cursor:pointer;
+}
+.filter-bar select option{background:var(--surface)}
+
+.alert-agent-banner{
+  display:flex;align-items:center;gap:10px;
+  background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.12);
+  border-radius:8px;padding:10px 16px;margin-bottom:16px;
+  font-size:13px;
+}
+.alert-agent-banner button{
+  margin-left:auto;background:transparent;border:1px solid var(--cyan);
+  color:var(--cyan);font-family:var(--mono);font-size:11px;
+  padding:4px 12px;border-radius:4px;cursor:pointer;transition:all .2s;
+}
+.alert-agent-banner button:hover{background:rgba(0,229,255,.1)}
+
+.alerts-table{width:100%;border-collapse:collapse}
+.alerts-table th{
+  font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;
+  color:var(--text-dim);text-align:left;padding:10px 12px;
+  border-bottom:1px solid var(--border);white-space:nowrap;
+}
+.alerts-table td{
+  padding:12px;border-bottom:1px solid var(--border);
+  font-size:13px;vertical-align:top;
+}
+.alerts-table tr{transition:background .15s}
+.alerts-table tbody tr:hover{background:rgba(0,229,255,.03)}
+.alert-title-cell{max-width:320px}
+.alert-title-text{font-weight:500;display:block}
+.alert-detail-text{
+  font-family:var(--mono);font-size:11px;color:var(--text-dim);
+  margin-top:4px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  max-width:320px;
+}
+.alert-host{font-family:var(--mono);font-size:12px}
+.alert-count{
+  font-family:var(--mono);font-size:13px;text-align:center;color:var(--cyan);
+}
+.alert-time{font-family:var(--mono);font-size:11px;color:var(--text-dim);white-space:nowrap}
+
+.pagination{
+  display:flex;align-items:center;justify-content:center;gap:12px;
+  margin-top:20px;padding-top:16px;border-top:1px solid var(--border);
+}
+.pagination button{
+  background:var(--surface);border:1px solid var(--border);border-radius:6px;
+  padding:8px 16px;color:var(--text);font-family:var(--mono);font-size:12px;
+  cursor:pointer;transition:all .2s;
+}
+.pagination button:hover:not(:disabled){border-color:var(--cyan);color:var(--cyan)}
+.pagination button:disabled{opacity:.3;cursor:default}
+.pagination .page-info{font-family:var(--mono);font-size:12px;color:var(--text-dim)}
+
+/* ── Install ── */
+.install-wrap{max-width:700px}
+.install-steps{display:flex;flex-direction:column;gap:20px;margin-top:20px}
+.install-step{display:flex;gap:14px}
+.step-num{
+  width:28px;height:28px;border-radius:50%;
+  background:rgba(0,229,255,.1);color:var(--cyan);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:12px;flex-shrink:0;margin-top:2px;
+}
+.step-content h4{font-size:14px;font-weight:600;margin-bottom:4px}
+.step-content p{font-size:13px;color:var(--text-dim);line-height:1.6}
+
+.code-block{
+  background:var(--raised);border:1px solid var(--border);border-radius:10px;
+  padding:16px 18px;margin-top:16px;position:relative;
+  font-family:var(--mono);font-size:12px;line-height:1.7;
+  color:var(--cyan);word-break:break-all;white-space:pre-wrap;
+}
+.copy-btn{
+  position:absolute;top:10px;right:10px;
+  background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.2);
+  color:var(--cyan);font-family:var(--mono);font-size:10px;
+  padding:4px 10px;border-radius:4px;cursor:pointer;transition:all .2s;
+}
+.copy-btn:hover{background:rgba(0,229,255,.15)}
+
+/* ── Token selector (Install page) ── */
+.token-selector{
+  display:flex;align-items:center;gap:10px;margin-bottom:16px;
+}
+.token-selector label{
+  font-size:12px;font-weight:600;color:var(--text-dim);text-transform:uppercase;
+  letter-spacing:.5px;white-space:nowrap;
+}
+.token-selector select{
+  flex:1;background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:10px 14px;color:var(--text);font-family:var(--mono);font-size:12px;
+  outline:none;cursor:pointer;transition:border-color .2s;
+}
+.token-selector select:focus{border-color:var(--cyan)}
+.token-selector select option{background:var(--surface)}
+.no-tokens-msg{
+  display:flex;align-items:center;gap:12px;
+  background:rgba(255,215,64,.05);border:1px solid rgba(255,215,64,.15);
+  border-radius:10px;padding:16px 20px;margin-bottom:20px;
+}
+.no-tokens-msg p{font-size:13px;color:var(--text-dim);flex:1;line-height:1.5}
+.no-tokens-msg button{
+  background:rgba(0,229,255,.1);border:1px solid var(--cyan);
+  color:var(--cyan);font-family:var(--mono);font-size:11px;
+  padding:8px 16px;border-radius:6px;cursor:pointer;transition:all .2s;
+  white-space:nowrap;
+}
+.no-tokens-msg button:hover{background:rgba(0,229,255,.2)}
+
+/* ── Settings ── */
+.settings-wrap{max-width:760px}
+.settings-section{margin-bottom:28px}
+.settings-section:last-child{margin-bottom:0}
+
+.token-create-form{
+  display:flex;align-items:center;gap:10px;margin-bottom:20px;
+}
+.token-create-form input{
+  flex:1;background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:10px 14px;color:var(--text);font-family:var(--sans);font-size:13px;
+  outline:none;transition:border-color .2s;
+}
+.token-create-form input:focus{border-color:var(--cyan)}
+.token-create-form input::placeholder{color:var(--text-dim)}
+.btn-primary{
+  background:var(--cyan);border:none;color:var(--void);
+  font-family:var(--sans);font-size:12px;font-weight:600;
+  padding:10px 20px;border-radius:8px;cursor:pointer;
+  transition:all .2s;white-space:nowrap;
+}
+.btn-primary:hover{opacity:.85;box-shadow:0 0 16px rgba(0,229,255,.2)}
+.btn-primary:disabled{opacity:.4;cursor:default;box-shadow:none}
+
+.token-list{display:flex;flex-direction:column;gap:0}
+.token-row{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 16px;
+  border-bottom:1px solid var(--border);
+  transition:background .15s;
+}
+.token-row:last-child{border-bottom:none}
+.token-row:hover{background:rgba(0,229,255,.02)}
+.token-label-text{font-size:13px;font-weight:500;min-width:100px}
+.token-value{
+  font-family:var(--mono);font-size:12px;color:var(--text-dim);
+  flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.token-date{font-family:var(--mono);font-size:11px;color:var(--text-dim);white-space:nowrap}
+.btn-delete{
+  background:transparent;border:1px solid var(--border);
+  color:var(--text-dim);font-family:var(--mono);font-size:10px;
+  padding:5px 12px;border-radius:5px;cursor:pointer;transition:all .2s;
+}
+.btn-delete:hover{border-color:var(--red);color:var(--red);background:rgba(255,61,113,.06)}
+
+.new-token-reveal{
+  background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.2);
+  border-radius:10px;padding:16px 20px;margin-bottom:20px;
+  animation:fadeUp .3s ease;
+}
+.new-token-reveal .reveal-header{
+  font-size:12px;font-weight:600;color:var(--cyan);
+  text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;
+  display:flex;align-items:center;gap:6px;
+}
+.new-token-reveal .reveal-value{
+  font-family:var(--mono);font-size:13px;color:var(--text);
+  background:var(--raised);border:1px solid var(--border);
+  border-radius:6px;padding:10px 14px;
+  word-break:break-all;position:relative;
+}
+.new-token-reveal .reveal-warn{
+  margin-top:10px;font-size:11px;color:var(--yellow);line-height:1.5;
+  display:flex;align-items:flex-start;gap:6px;
+}
+
+.info-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:14px;
+}
+@media(max-width:600px){.info-grid{grid-template-columns:1fr}}
+.info-item{
+  padding:14px 16px;background:var(--raised);border-radius:8px;
+}
+.info-item-label{
+  font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--text-dim);margin-bottom:4px;
+}
+.info-item-value{
+  font-family:var(--mono);font-size:13px;color:var(--text);
+}
+
+/* ── Empty state with action ── */
+.empty-action{
+  display:inline-block;margin-top:10px;
+  font-family:var(--mono);font-size:11px;color:var(--cyan);
+  text-decoration:none;border:1px solid rgba(0,229,255,.2);
+  padding:6px 16px;border-radius:6px;transition:all .2s;cursor:pointer;
+  background:transparent;
+}
+.empty-action:hover{background:rgba(0,229,255,.08);border-color:var(--cyan)}
+
+/* ── Loading / Empty ── */
+.loading{
+  display:flex;align-items:center;justify-content:center;
+  padding:60px 20px;color:var(--text-dim);gap:10px;
+}
+.spinner{
+  width:18px;height:18px;border:2px solid var(--border);
+  border-top-color:var(--cyan);border-radius:50%;
+  animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty-state{
+  text-align:center;padding:60px 20px;color:var(--text-dim);
+}
+.empty-state svg{margin-bottom:12px;opacity:.3}
+.empty-state p{font-size:13px}
+
+/* ── Misc ── */
+.text-dim{color:var(--text-dim)}
+.text-mono{font-family:var(--mono)}
+.mb-4{margin-bottom:16px}
+</style>
+</head>
+<body>
+
+<!-- ── Sidebar ── -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+      <path d="M12 2L2 7v10l10 5 10-5V7L12 2z" stroke="var(--cyan)" stroke-width="1.5" fill="none"/>
+      <circle cx="12" cy="12" r="3" fill="var(--cyan)" opacity=".6"/>
+      <path d="M12 2v20M2 7l10 5 10-5" stroke="var(--cyan)" stroke-width="1" opacity=".3"/>
+    </svg>
+    <h1>Sentinel</h1>
+    <span>V3</span>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-item on" onclick="nav('overview')" data-nav="overview">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      Overview
+    </div>
+    <div class="nav-item" onclick="nav('servers')" data-nav="servers">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="6" rx="2"/><rect x="2" y="15" width="20" height="6" rx="2"/><circle cx="6" cy="6" r="1" fill="currentColor"/><circle cx="6" cy="18" r="1" fill="currentColor"/><line x1="10" y1="6" x2="18" y2="6"/><line x1="10" y1="18" x2="18" y2="18"/></svg>
+      Servers
+    </div>
+    <div class="nav-item" onclick="nav('alerts')" data-nav="alerts">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="16.5" r=".5" fill="currentColor"/></svg>
+      All Alerts
+    </div>
+    <div class="nav-item" onclick="nav('install')" data-nav="install">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/><polyline points="7 11 12 16 17 11"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
+      Install Agent
+    </div>
+    <div class="nav-item" onclick="nav('settings')" data-nav="settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      Settings
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="org-info">
+      <span class="org-name" id="sidebar-org-name">—</span>
+      <a href="/logout" class="logout-link">Sign out</a>
+    </div>
+  </div>
+</aside>
+
+<!-- ── Main Content ── -->
+<div class="main">
+  <div class="main-header">
+    <h2 id="page-title">Overview</h2>
+    <div class="refresh-info">
+      <span id="last-refresh">—</span>
+    </div>
+  </div>
+
+  <!-- Overview -->
+  <div class="page on" id="pg-overview">
+    <div id="overview-content"><div class="loading"><div class="spinner"></div>Loading dashboard…</div></div>
+  </div>
+
+  <!-- Servers -->
+  <div class="page" id="pg-servers">
+    <div class="search-bar">
+      <input type="text" id="server-search" placeholder="Search servers by hostname, IP, or tag…" oninput="handleServerSearch(this.value)">
+    </div>
+    <div id="servers-content"><div class="loading"><div class="spinner"></div>Loading servers…</div></div>
+  </div>
+
+  <!-- Alerts -->
+  <div class="page" id="pg-alerts">
+    <div id="alert-agent-banner-wrap"></div>
+    <div class="filter-bar">
+      <button class="filter-btn on" data-sev="all" onclick="filterSev('all')">All</button>
+      <button class="filter-btn" data-sev="critical" onclick="filterSev('critical')">Critical</button>
+      <button class="filter-btn" data-sev="high" onclick="filterSev('high')">High</button>
+      <button class="filter-btn" data-sev="medium" onclick="filterSev('medium')">Medium</button>
+      <button class="filter-btn" data-sev="low" onclick="filterSev('low')">Low</button>
+      <div class="filter-sep"></div>
+      <select id="cat-filter" onchange="filterCat(this.value)">
+        <option value="">All Categories</option>
+        <option value="file_integrity">File Integrity</option>
+        <option value="crypto_mining">Crypto Mining</option>
+        <option value="http_anomaly">HTTP Anomaly</option>
+        <option value="network">Network</option>
+      </select>
+      <input type="text" id="alert-search" placeholder="Search alerts…" oninput="handleAlertSearch(this.value)">
+    </div>
+    <div id="alerts-content"><div class="loading"><div class="spinner"></div>Loading alerts…</div></div>
+    <div id="alerts-pagination"></div>
+  </div>
+
+  <!-- Install -->
+  <div class="page" id="pg-install">
+    <div id="install-content"></div>
+  </div>
+
+  <!-- Settings -->
+  <div class="page" id="pg-settings">
+    <div id="settings-content"></div>
+  </div>
+</div>
+
+<script>
+/* ── State ── */
+let agents = [];
+let stats = {};
+let alerts = [];
+let alertTotal = 0;
+let alertFilter = 'all';
+let alertCategory = '';
+let alertPage = 0;
+let alertSearch = '';
+let alertAgentId = null;
+let sparkData = [];
+const ALERT_LIMIT = 50;
+let serverSearchQuery = '';
+let searchDebounce = null;
+let alertSearchDebounce = null;
+
+let me = null;
+let tokens = [];
+let newlyCreatedToken = null;
+
+const pageTitles = {
+  overview: 'Overview',
+  servers: 'Servers',
+  alerts: 'All Alerts',
+  install: 'Install Agent',
+  settings: 'Settings'
+};
+
+/* ── Helpers ── */
+function timeAgo(ts) {
+  if (!ts) return '—';
+  const sec = Math.floor(Date.now() / 1000 - ts);
+  if (sec < 60) return sec + 's ago';
+  if (sec < 3600) return Math.floor(sec / 60) + 'm ago';
+  if (sec < 86400) return Math.floor(sec / 3600) + 'h ago';
+  return Math.floor(sec / 86400) + 'd ago';
+}
+
+function timeAgoISO(iso) {
+  if (!iso) return '—';
+  return timeAgo(new Date(iso).getTime() / 1000);
+}
+
+function severityColor(sev) {
+  const m = { critical: 'var(--red)', high: 'var(--orange)', medium: 'var(--yellow)', low: 'var(--cyan)' };
+  return m[sev] || 'var(--text-dim)';
+}
+
+function sevClass(sev) {
+  return 'sev-' + (sev || 'low');
+}
+
+function categoryIcon(cat) {
+  const m = {
+    file_integrity: '🔒',
+    crypto_mining: '⛏️',
+    http_anomaly: '🌐',
+    network: '📡',
+    auth_failure: '🔑',
+    process: '⚙️',
+    malware: '🦠'
+  };
+  return m[cat] || '📋';
+}
+
+function categoryLabel(cat) {
+  return (cat || 'unknown').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function esc(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function formatNum(n) {
+  if (n == null) return '0';
+  return Number(n).toLocaleString();
+}
+
+function maskToken(token) {
+  if (!token) return '—';
+  if (token.length <= 10) return token;
+  return token.slice(0, 6) + '...' + token.slice(-4);
+}
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/* ── Navigation ── */
+function nav(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('on'));
+  const el = document.getElementById('pg-' + page);
+  if (el) el.classList.add('on');
+  const ni = document.querySelector('[data-nav="' + page + '"]');
+  if (ni) ni.classList.add('on');
+  document.getElementById('page-title').textContent = pageTitles[page] || page;
+
+  if (page === 'overview') renderOverview();
+  if (page === 'servers') renderServers();
+  if (page === 'alerts') renderAlerts();
+  if (page === 'install') { loadTokens().then(renderInstall); }
+  if (page === 'settings') { loadTokens().then(renderSettings); }
+}
+
+/* ── API ── */
+async function api(url) {
+  try {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(r.status);
+    return await r.json();
+  } catch (e) {
+    console.warn('API error:', url, e);
+    return null;
+  }
+}
+
+async function refresh() {
+  if (!me) {
+    me = await api('/api/me');
+    if (me) {
+      document.getElementById('sidebar-org-name').textContent = me.org.name;
+    }
+  }
+  const [ag, st] = await Promise.all([
+    api('/api/agents'),
+    api('/api/stats')
+  ]);
+  if (ag) agents = Array.isArray(ag) ? ag : (ag.agents || []);
+  if (st) {
+    stats = st;
+    sparkData = st.hourly || [];
+  }
+  document.getElementById('last-refresh').textContent = new Date().toLocaleTimeString();
+
+  const activePage = document.querySelector('.page.on');
+  if (!activePage) return;
+  const id = activePage.id.replace('pg-', '');
+  if (id === 'overview') renderOverview();
+  if (id === 'servers') renderServers();
+  if (id === 'alerts') fetchAndRenderAlerts();
+}
+
+async function fetchAndRenderAlerts() {
+  let url = '/api/alerts?limit=' + ALERT_LIMIT + '&offset=' + (alertPage * ALERT_LIMIT) + '&hours=24';
+  if (alertFilter !== 'all') url += '&severity=' + alertFilter;
+  if (alertCategory) url += '&category=' + alertCategory;
+  if (alertAgentId) url += '&agent_id=' + alertAgentId;
+  if (alertSearch) url += '&search=' + encodeURIComponent(alertSearch);
+
+  const data = await api(url);
+  if (data) {
+    alerts = data.alerts || [];
+    alertTotal = data.total || 0;
+  }
+  renderAlerts();
+}
+
+/* ── Token API ── */
+async function loadTokens() {
+  const data = await api('/api/tokens');
+  if (data) tokens = Array.isArray(data) ? data : [];
+}
+
+async function createToken(label) {
+  if (!label.trim()) return;
+  try {
+    const r = await fetch('/api/tokens', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label: label.trim() })
+    });
+    if (!r.ok) throw new Error(r.status);
+    const data = await r.json();
+    newlyCreatedToken = data;
+    await loadTokens();
+    renderSettings();
+  } catch (e) {
+    console.warn('Create token error:', e);
+  }
+}
+
+async function deleteToken(id) {
+  try {
+    await fetch('/api/tokens/' + id, { method: 'DELETE' });
+    await loadTokens();
+    renderSettings();
+  } catch (e) {
+    console.warn('Delete token error:', e);
+  }
+}
+
+/* ── Render: Overview ── */
+function renderOverview() {
+  const t = stats.total_24h ?? 0;
+  const sev = stats.by_severity || {};
+  const cats = stats.by_category || {};
+  const aOnline = stats.agents_online ?? 0;
+  const aTotal = stats.agents_total ?? 0;
+
+  const critAlerts = alerts.length ? alerts.filter(a => a.severity === 'critical' || a.severity === 'high').slice(0, 6) : [];
+
+  let html = '';
+
+  html += '<div class="stat-grid">';
+  html += statCard('Alerts (24h)', formatNum(t), '--cyan');
+  html += statCard('Critical', formatNum(sev.critical || 0), '--red');
+  html += statCard('High', formatNum(sev.high || 0), '--orange');
+  html += statCard('Agents Online', aOnline + ' / ' + aTotal, '--green');
+  html += '</div>';
+
+  html += '<div class="spark-wrap">';
+  html += '<div class="spark-title">Alert Volume — Last 24 Hours</div>';
+  html += renderSparkBars(sparkData);
+  html += '</div>';
+
+  html += '<div class="overview-grid">';
+
+  html += '<div class="card"><div class="card-header">Categories</div><div class="card-body">';
+  const catKeys = Object.keys(cats);
+  if (catKeys.length) {
+    html += '<div class="cat-list">';
+    catKeys.sort((a, b) => cats[b] - cats[a]).forEach(k => {
+      html += '<div class="cat-row"><span class="cat-icon">' + categoryIcon(k) + '</span>';
+      html += '<span class="cat-name">' + categoryLabel(k) + '</span>';
+      html += '<span class="cat-count">' + formatNum(cats[k]) + '</span></div>';
+    });
+    html += '</div>';
+  } else {
+    html += '<div class="empty-state"><p>No category data yet</p></div>';
+  }
+  html += '</div></div>';
+
+  html += '<div class="card"><div class="card-header">Recent Critical &amp; High</div><div class="card-body">';
+  if (critAlerts.length) {
+    html += '<div class="recent-alerts-list">';
+    critAlerts.forEach(a => {
+      html += '<div class="recent-alert" onclick="drillAgent(\'' + esc(a.agent_id) + '\')">';
+      html += '<span class="sev-badge ' + sevClass(a.severity) + '">' + esc(a.severity) + '</span>';
+      html += '<span style="flex:1;font-size:13px">' + esc(a.title) + '</span>';
+      html += '<span class="text-mono" style="font-size:11px;color:var(--text-dim)">' + timeAgo(a.last_seen) + '</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+  } else {
+    html += '<div class="empty-state"><p>No critical or high alerts</p></div>';
+  }
+  html += '</div></div>';
+
+  html += '</div>';
+
+  // Empty state nudge when no agents
+  if (aTotal === 0) {
+    html += '<div class="empty-state" style="padding:40px 20px">' +
+      '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:.3;margin-bottom:12px"><rect x="2" y="3" width="20" height="6" rx="2"/><rect x="2" y="15" width="20" height="6" rx="2"/></svg>' +
+      '<p>No servers connected yet</p>' +
+      '<button class="empty-action" onclick="nav(\'install\')">Install your first agent</button>' +
+      '</div>';
+  }
+
+  document.getElementById('overview-content').innerHTML = html;
+}
+
+function statCard(label, value, colorVar) {
+  return '<div class="stat-card">' +
+    '<div class="stat-accent" style="background:var(' + colorVar + ')"></div>' +
+    '<div class="stat-label">' + label + '</div>' +
+    '<div class="stat-value" style="color:var(' + colorVar + ')">' + value + '</div>' +
+    '</div>';
+}
+
+function renderSparkBars(data) {
+  if (!data || !data.length) {
+    return '<div class="empty-state"><p>No hourly data</p></div>';
+  }
+  const max = Math.max(...data, 1);
+  let html = '<div class="spark-bars">';
+  data.forEach((v, i) => {
+    const h = Math.max(2, (v / max) * 100);
+    const opacity = v > 0 ? (.3 + (.7 * v / max)) : .15;
+    html += '<div class="spark-bar" style="height:' + h + '%;opacity:' + opacity + '" data-val="' + v + '"></div>';
+  });
+  html += '</div>';
+  html += '<div class="spark-labels"><span>24h ago</span><span>now</span></div>';
+  return html;
+}
+
+/* ── Render: Servers ── */
+function renderServers() {
+  let list = agents;
+  if (serverSearchQuery) {
+    const q = serverSearchQuery.toLowerCase();
+    list = list.filter(a =>
+      (a.hostname || '').toLowerCase().includes(q) ||
+      (a.ip || '').toLowerCase().includes(q) ||
+      (a.tags || []).some(t => t.toLowerCase().includes(q))
+    );
+  }
+
+  if (!list.length) {
+    const noMatch = agents.length && serverSearchQuery;
+    document.getElementById('servers-content').innerHTML =
+      '<div class="empty-state"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="6" rx="2"/><rect x="2" y="15" width="20" height="6" rx="2"/></svg>' +
+      '<p>' + (noMatch ? 'No servers match your search' : 'No agents registered yet') + '</p>' +
+      (noMatch ? '' : '<button class="empty-action" onclick="nav(\'install\')">Install an agent</button>') +
+      '</div>';
+    return;
+  }
+
+  let html = '<div class="servers-grid">';
+  list.forEach(a => {
+    const online = a.online !== false;
+    html += '<div class="server-card' + (online ? '' : ' offline') + '" onclick="drillAgent(\'' + esc(a.agent_id || a.id) + '\')">';
+    html += '<div class="server-top">';
+    html += '<span class="status-dot ' + (online ? 'online' : 'offline') + '"></span>';
+    html += '<span class="server-hostname">' + esc(a.hostname || 'Unknown') + '</span>';
+    html += '</div>';
+
+    html += '<div class="server-meta">';
+    html += metaItem('IP', a.ip || '—');
+    html += metaItem('OS', a.os || '—');
+    html += metaItem('Version', a.version || '—');
+    html += metaItem('Last Seen', a.last_seen ? timeAgo(a.last_seen) : (a.last_seen_iso ? timeAgoISO(a.last_seen_iso) : '—'));
+    html += '</div>';
+
+    if (a.tags && a.tags.length) {
+      html += '<div class="server-tags">';
+      a.tags.forEach(t => { html += '<span class="server-tag">' + esc(t) + '</span>'; });
+      html += '</div>';
+    }
+
+    html += '</div>';
+  });
+  html += '</div>';
+  document.getElementById('servers-content').innerHTML = html;
+}
+
+function metaItem(label, value) {
+  return '<div class="server-meta-item"><span class="server-meta-label">' + label +
+    '</span><span class="server-meta-value">' + esc(String(value)) + '</span></div>';
+}
+
+function handleServerSearch(val) {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => {
+    serverSearchQuery = val;
+    renderServers();
+  }, 200);
+}
+
+/* ── Render: Alerts ── */
+function renderAlerts() {
+  const banner = document.getElementById('alert-agent-banner-wrap');
+  if (alertAgentId) {
+    const ag = agents.find(a => (a.agent_id || a.id) === alertAgentId);
+    banner.innerHTML = '<div class="alert-agent-banner">' +
+      '<span>Filtering alerts for <strong>' + esc(ag ? ag.hostname : alertAgentId) + '</strong></span>' +
+      '<button onclick="clearAgentFilter()">Clear Filter</button></div>';
+  } else {
+    banner.innerHTML = '';
+  }
+
+  const wrap = document.getElementById('alerts-content');
+
+  if (!alerts.length) {
+    wrap.innerHTML = '<div class="empty-state"><p>No alerts match current filters</p></div>';
+    document.getElementById('alerts-pagination').innerHTML = '';
+    return;
+  }
+
+  let html = '<div style="overflow-x:auto"><table class="alerts-table"><thead><tr>' +
+    '<th>Severity</th><th>Category</th><th>Alert</th><th>Host</th><th>Count</th><th>Last Seen</th>' +
+    '</tr></thead><tbody>';
+
+  alerts.forEach(a => {
+    html += '<tr>';
+    html += '<td><span class="sev-badge ' + sevClass(a.severity) + '">' + esc(a.severity) + '</span></td>';
+    html += '<td><span style="font-size:12px">' + categoryIcon(a.category) + ' ' + categoryLabel(a.category) + '</span></td>';
+    html += '<td class="alert-title-cell"><span class="alert-title-text">' + esc(a.title) + '</span>';
+    if (a.last_detail) html += '<span class="alert-detail-text">' + esc(a.last_detail) + '</span>';
+    html += '</td>';
+    html += '<td class="alert-host">' + esc(a.hostname || '—') + '</td>';
+    html += '<td class="alert-count">' + formatNum(a.count) + '</td>';
+    html += '<td class="alert-time">' + timeAgo(a.last_seen) + '</td>';
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  wrap.innerHTML = html;
+
+  const totalPages = Math.ceil(alertTotal / ALERT_LIMIT);
+  const pg = document.getElementById('alerts-pagination');
+  if (totalPages > 1) {
+    pg.innerHTML = '<div class="pagination">' +
+      '<button onclick="alertPrev()"' + (alertPage <= 0 ? ' disabled' : '') + '>← Prev</button>' +
+      '<span class="page-info">Page ' + (alertPage + 1) + ' of ' + totalPages + ' (' + formatNum(alertTotal) + ' total)</span>' +
+      '<button onclick="alertNext()"' + (alertPage >= totalPages - 1 ? ' disabled' : '') + '>Next →</button>' +
+      '</div>';
+  } else {
+    pg.innerHTML = '';
+  }
+}
+
+function filterSev(sev) {
+  alertFilter = sev;
+  alertPage = 0;
+  document.querySelectorAll('.filter-btn[data-sev]').forEach(b => b.classList.toggle('on', b.dataset.sev === sev));
+  fetchAndRenderAlerts();
+}
+
+function filterCat(cat) {
+  alertCategory = cat;
+  alertPage = 0;
+  fetchAndRenderAlerts();
+}
+
+function handleAlertSearch(val) {
+  clearTimeout(alertSearchDebounce);
+  alertSearchDebounce = setTimeout(() => {
+    alertSearch = val;
+    alertPage = 0;
+    fetchAndRenderAlerts();
+  }, 300);
+}
+
+function alertPrev() { if (alertPage > 0) { alertPage--; fetchAndRenderAlerts(); } }
+function alertNext() {
+  if ((alertPage + 1) * ALERT_LIMIT < alertTotal) { alertPage++; fetchAndRenderAlerts(); }
+}
+
+function drillAgent(agentId) {
+  alertAgentId = agentId;
+  alertPage = 0;
+  alertFilter = 'all';
+  alertSearch = '';
+  document.querySelectorAll('.filter-btn[data-sev]').forEach(b => b.classList.toggle('on', b.dataset.sev === 'all'));
+  document.getElementById('alert-search').value = '';
+  document.getElementById('cat-filter').value = '';
+  nav('alerts');
+  fetchAndRenderAlerts();
+}
+
+function clearAgentFilter() {
+  alertAgentId = null;
+  alertPage = 0;
+  fetchAndRenderAlerts();
+}
+
+/* ── Render: Install ── */
+function renderInstall() {
+  const host = window.location.host || 'YOUR_SERVER:PORT';
+  let html = '<div class="install-wrap">';
+
+  html += '<p style="color:var(--text-dim);font-size:14px;line-height:1.7;margin-bottom:24px">' +
+    'Deploy the Sentinel agent to any Linux server with a single command. The agent monitors system activity and reports security alerts back to this dashboard in real-time.</p>';
+
+  if (!tokens.length) {
+    html += '<div class="no-tokens-msg">' +
+      '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--yellow)" stroke-width="1.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="16.5" r=".5" fill="var(--yellow)"/></svg>' +
+      '<p>You need an API token to install agents. Create one in Settings first.</p>' +
+      '<button onclick="nav(\'settings\')">Go to Settings</button>' +
+      '</div>';
+    html += buildInstallCommand(host, 'YOUR_TOKEN');
+  } else {
+    html += '<div class="token-selector">' +
+      '<label>Token</label>' +
+      '<select id="install-token-select" onchange="updateInstallCmd()">';
+    tokens.forEach((t, i) => {
+      html += '<option value="' + esc(t.token) + '">' + esc(t.label) + ' (' + maskToken(t.token) + ')</option>';
+    });
+    html += '</select></div>';
+    html += buildInstallCommand(host, tokens[0].token);
+  }
+
+  html += '<div class="install-steps">' +
+    installStep('1', 'Download', 'The install script is fetched from this Sentinel server and executed on the target host.') +
+    installStep('2', 'Configure', 'The agent registers with this server using the selected token and begins monitoring immediately.') +
+    installStep('3', 'Monitor', 'Security events are streamed to this dashboard. The agent checks for file integrity changes, suspicious processes, crypto miners, network anomalies, and more.') +
+    '</div></div>';
+
+  document.getElementById('install-content').innerHTML = html;
+}
+
+function buildInstallCommand(host, token) {
+  const cmd = 'curl -sSL http://' + host + '/install.sh | SENTINEL_SERVER=http://' + host + ' SENTINEL_TOKEN=' + token + ' bash';
+  return '<div class="code-block" id="install-cmd-block"><button class="copy-btn" onclick="copyCmd(this)">Copy</button>' + esc(cmd) + '</div>';
+}
+
+function updateInstallCmd() {
+  const sel = document.getElementById('install-token-select');
+  if (!sel) return;
+  const host = window.location.host || 'YOUR_SERVER:PORT';
+  const token = sel.value;
+  const cmd = 'curl -sSL http://' + host + '/install.sh | SENTINEL_SERVER=http://' + host + ' SENTINEL_TOKEN=' + token + ' bash';
+  const block = document.getElementById('install-cmd-block');
+  if (block) {
+    block.innerHTML = '<button class="copy-btn" onclick="copyCmd(this)">Copy</button>' + esc(cmd);
+  }
+}
+
+function installStep(num, title, desc) {
+  return '<div class="install-step"><span class="step-num">' + num + '</span>' +
+    '<div class="step-content"><h4>' + title + '</h4><p>' + desc + '</p></div></div>';
+}
+
+function copyCmd(btn) {
+  const text = btn.parentElement.textContent.replace('Copy', '').replace('Copied!', '').trim();
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+  });
+}
+
+function copyText(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+  });
+}
+
+/* ── Render: Settings ── */
+function renderSettings() {
+  const user = me ? me.user : {};
+  const org = me ? me.org : {};
+
+  let html = '<div class="settings-wrap">';
+
+  // Section 1: API Tokens
+  html += '<div class="settings-section">';
+  html += '<div class="card"><div class="card-header">' +
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>' +
+    'API Tokens</div><div class="card-body">';
+
+  html += '<p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6">' +
+    'Tokens are used to authenticate agents when they register with this server. ' +
+    'Create a token here, then use it on the <a href="javascript:nav(\'install\')" style="color:var(--cyan);text-decoration:none">Install Agent</a> page.</p>';
+
+  // New token reveal
+  if (newlyCreatedToken) {
+    html += '<div class="new-token-reveal">' +
+      '<div class="reveal-header">' +
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>' +
+      'Token Created</div>' +
+      '<div class="reveal-value">' + esc(newlyCreatedToken.token) +
+      '<button class="copy-btn" onclick="copyText(\'' + esc(newlyCreatedToken.token) + '\', this)" style="top:8px;right:8px">Copy</button></div>' +
+      '<div class="reveal-warn">⚠ Copy this token now — it won\'t be shown again in full.</div>' +
+      '</div>';
+  }
+
+  // Create form
+  html += '<div class="token-create-form">' +
+    '<input type="text" id="new-token-label" placeholder="Token label (e.g. production-servers)" maxlength="64">' +
+    '<button class="btn-primary" onclick="handleCreateToken()">Create Token</button>' +
+    '</div>';
+
+  // Token list
+  if (tokens.length) {
+    html += '<div class="token-list">';
+    tokens.forEach(t => {
+      html += '<div class="token-row">' +
+        '<span class="token-label-text">' + esc(t.label) + '</span>' +
+        '<span class="token-value">' + maskToken(t.token) + '</span>' +
+        '<span class="token-date">' + formatDate(t.created_at) + '</span>' +
+        '<button class="btn-delete" onclick="deleteToken(\'' + esc(t.id) + '\')">Delete</button>' +
+        '</div>';
+    });
+    html += '</div>';
+  } else {
+    html += '<div class="empty-state" style="padding:30px 20px"><p>No tokens yet. Create one to start installing agents.</p></div>';
+  }
+
+  html += '</div></div></div>';
+
+  // Section 2: Organization Info
+  html += '<div class="settings-section">';
+  html += '<div class="card"><div class="card-header">' +
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>' +
+    'Organization</div><div class="card-body">';
+
+  html += '<div class="info-grid">';
+  html += infoItem('Organization', org.name || '—');
+  html += infoItem('Slug', org.slug || '—');
+  html += infoItem('Your Name', user.name || '—');
+  html += infoItem('Email', user.email || '—');
+  html += infoItem('Role', user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : '—');
+  html += infoItem('User ID', user.id || '—');
+  html += '</div>';
+
+  html += '</div></div></div>';
+
+  html += '</div>';
+
+  document.getElementById('settings-content').innerHTML = html;
+}
+
+function infoItem(label, value) {
+  return '<div class="info-item">' +
+    '<div class="info-item-label">' + esc(label) + '</div>' +
+    '<div class="info-item-value">' + esc(String(value)) + '</div>' +
+    '</div>';
+}
+
+function handleCreateToken() {
+  const inp = document.getElementById('new-token-label');
+  if (!inp || !inp.value.trim()) {
+    inp.focus();
+    return;
+  }
+  newlyCreatedToken = null;
+  createToken(inp.value);
+}
+
+/* ── Init ── */
+(async function init() {
+  await refresh();
+  await fetchAndRenderAlerts();
+  renderInstall();
+  setInterval(refresh, 15000);
+})();
+</script>
+</body>
+</html>
