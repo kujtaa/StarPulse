@@ -22,10 +22,13 @@ import logging
 import os
 import platform
 import re
+import shutil
 import signal
 import socket
 import struct
+import subprocess
 import sys
+import tempfile
 import threading
 import time
 
@@ -38,7 +41,7 @@ except ImportError:
 if sys.version_info < (3, 6):
     sys.exit("Sentinel agent requires Python 3.6+")
 
-AGENT_VERSION = "3.0"
+AGENT_VERSION = "3.1"
 
 DEFAULT_CFG = {
     "agent": {
@@ -48,6 +51,7 @@ DEFAULT_CFG = {
         "push_interval": "30",
         "agent_id": "",
         "tags": "",
+        "auto_update": "true",
     },
     "file_integrity": {
         "enabled": "true",
@@ -308,6 +312,8 @@ class AlertManager(object):
 class Pusher(object):
     """Background thread that ships alerts to the central server."""
 
+    AGENT_PATH = "/opt/sentinel/agent/agent.py"
+
     def __init__(self, cfg, am, agent_id, shutdown_event):
         self.am = am
         self.agent_id = agent_id
@@ -316,6 +322,7 @@ class Pusher(object):
         self.token = cfg.get("agent", "token", fallback="")
         self.interval = int(cfg.get("agent", "push_interval", fallback="30"))
         self.tags = cfg.get("agent", "tags", fallback="")
+        self.auto_update = cfg.getboolean("agent", "auto_update", fallback=True)
         self.resource_enabled = cfg.getboolean("resource", "enabled", fallback=True)
         self.ram_threshold = float(cfg.get("resource", "ram_threshold", fallback="50"))
         self.cpu_threshold = float(cfg.get("resource", "cpu_threshold", fallback="50"))
@@ -382,11 +389,74 @@ class Pusher(object):
             req.add_header("X-Sentinel-Token", self.token)
         try:
             resp = urlopen(req, timeout=15)
-            resp.read()
+            resp_body = resp.read()
             log.info("Heartbeat OK -> %s (alerts=%d, status=%s)", url, len(alerts), resp.status)
+            if self.auto_update:
+                self._maybe_update(resp_body)
         except Exception as exc:
             log.warning("Push failed (%s) — re-queuing %d alerts", exc, len(alerts))
             self.am.requeue(alerts)
+
+    # -- Auto-update --------------------------------------------------------
+
+    @staticmethod
+    def _version_tuple(v):
+        try:
+            return tuple(int(x) for x in v.split("."))
+        except (ValueError, AttributeError):
+            return (0,)
+
+    def _maybe_update(self, resp_body):
+        try:
+            data = json.loads(resp_body)
+        except (ValueError, TypeError):
+            return
+        latest = data.get("latest_agent_version")
+        if not latest:
+            return
+        if self._version_tuple(latest) <= self._version_tuple(AGENT_VERSION):
+            return
+
+        log.info("New agent version available: %s (current: %s) — starting update", latest, AGENT_VERSION)
+        try:
+            self._do_update()
+        except Exception:
+            log.exception("Auto-update failed, will retry next cycle")
+
+    def _do_update(self):
+        url = self.server_url.rstrip("/") + "/api/agent.py"
+        req = Request(url)
+        req.add_header("User-Agent", "StarPulse-Agent/{}".format(AGENT_VERSION))
+        if self.token:
+            req.add_header("X-Sentinel-Token", self.token)
+        resp = urlopen(req, timeout=30)
+        new_code = resp.read()
+
+        if len(new_code) < 500 or b"AGENT_VERSION" not in new_code:
+            log.warning("Auto-update: downloaded file looks invalid (%d bytes), skipping", len(new_code))
+            return
+
+        fd, tmp_path = tempfile.mkstemp(suffix=".py", prefix="sentinel_update_")
+        try:
+            os.write(fd, new_code)
+            os.close(fd)
+
+            rc = subprocess.call([sys.executable, "-c",
+                                  "import py_compile; py_compile.compile('{}', doraise=True)".format(tmp_path)])
+            if rc != 0:
+                log.warning("Auto-update: new agent.py has syntax errors, skipping")
+                return
+
+            shutil.copy2(self.AGENT_PATH, self.AGENT_PATH + ".bak")
+            shutil.move(tmp_path, self.AGENT_PATH)
+            os.chmod(self.AGENT_PATH, 0o755)
+            log.info("Auto-update: agent.py replaced, restarting service...")
+            subprocess.Popen(["systemctl", "restart", "sentinel-agent"],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
 
 
 # ---------------------------------------------------------------------------

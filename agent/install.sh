@@ -162,6 +162,7 @@ scan_interval = 30
 push_interval = 30
 agent_id = ${AGENT_ID}
 tags = ${SENTINEL_TAGS:-}
+auto_update = true
 
 [file_integrity]
 enabled = true

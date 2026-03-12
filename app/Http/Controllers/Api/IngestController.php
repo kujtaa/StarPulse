@@ -136,10 +136,17 @@ class IngestController extends Controller
             }
         }
 
+        $latestVersion = null;
+        $agentPath = base_path('agent/agent.py');
+        if (file_exists($agentPath) && preg_match('/^AGENT_VERSION\s*=\s*["\'](.+?)["\']/m', file_get_contents($agentPath), $m)) {
+            $latestVersion = $m[1];
+        }
+
         return response()->json([
             'ok' => true,
             'new_alerts' => $newCount,
             'total' => count($alerts),
+            'latest_agent_version' => $latestVersion,
         ]);
     }
 }
