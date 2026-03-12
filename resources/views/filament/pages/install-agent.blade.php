@@ -147,7 +147,10 @@
                 </ol>
             </x-filament::section>
 
-            <div>
+            <div class="flex items-center gap-3">
+                <x-filament::button wire:click="finishSetup" icon="heroicon-o-check-circle">
+                    I've Installed the Agent
+                </x-filament::button>
                 <x-filament::button color="gray" wire:click="startOver" icon="heroicon-o-plus">
                     Add Another Server
                 </x-filament::button>

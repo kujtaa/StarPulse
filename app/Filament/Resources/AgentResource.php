@@ -4,6 +4,8 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\AgentResource\Pages;
 use App\Models\Agent;
+use Filament\Infolists;
+use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -119,7 +121,80 @@ class AgentResource extends Resource
                     ),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
+                Tables\Actions\ViewAction::make()
+                    ->modalHeading(fn (Agent $record): string => $record->hostname ?? $record->registered_address ?? 'Server')
+                    ->modalWidth('3xl')
+                    ->infolist([
+                        Infolists\Components\Section::make('Server Info')
+                            ->columns(3)
+                            ->schema([
+                                Infolists\Components\TextEntry::make('status')
+                                    ->badge()
+                                    ->getStateUsing(fn (Agent $record): string => $record->status)
+                                    ->color(fn (string $state): string => match ($state) {
+                                        'Online' => 'success',
+                                        'Pending' => 'warning',
+                                        default => 'danger',
+                                    }),
+                                Infolists\Components\TextEntry::make('hostname')
+                                    ->label('Hostname'),
+                                Infolists\Components\TextEntry::make('ip')
+                                    ->label('IP Address')
+                                    ->placeholder('Not connected yet'),
+                            ]),
+                        Infolists\Components\Section::make('System Details')
+                            ->columns(3)
+                            ->schema([
+                                Infolists\Components\TextEntry::make('os_info')
+                                    ->label('Operating System')
+                                    ->placeholder('Unknown'),
+                                Infolists\Components\TextEntry::make('agent_ver')
+                                    ->label('Agent Version')
+                                    ->badge()
+                                    ->placeholder('N/A'),
+                                Infolists\Components\TextEntry::make('registered_address')
+                                    ->label('Registered Address')
+                                    ->placeholder('Direct install'),
+                            ]),
+                        Infolists\Components\Section::make('Activity')
+                            ->columns(3)
+                            ->schema([
+                                Infolists\Components\TextEntry::make('first_seen')
+                                    ->label('First Seen')
+                                    ->dateTime()
+                                    ->placeholder('Never'),
+                                Infolists\Components\TextEntry::make('last_seen')
+                                    ->label('Last Seen')
+                                    ->since()
+                                    ->placeholder('Never'),
+                                Infolists\Components\TextEntry::make('tags')
+                                    ->badge()
+                                    ->separator(',')
+                                    ->placeholder('No tags'),
+                            ]),
+                        Infolists\Components\Section::make('Recent Alerts')
+                            ->icon('heroicon-o-bell-alert')
+                            ->schema([
+                                Infolists\Components\RepeatableEntry::make('alertGroups')
+                                    ->hiddenLabel()
+                                    ->columns(4)
+                                    ->schema([
+                                        Infolists\Components\TextEntry::make('severity')
+                                            ->badge()
+                                            ->color(fn (string $state): string => match ($state) {
+                                                'critical' => 'danger',
+                                                'high' => 'warning',
+                                                'medium' => 'warning',
+                                                default => 'info',
+                                            }),
+                                        Infolists\Components\TextEntry::make('title')
+                                            ->columnSpan(2),
+                                        Infolists\Components\TextEntry::make('last_seen')
+                                            ->since(),
+                                    ])
+                                    ->placeholder('No alerts recorded for this server.'),
+                            ]),
+                    ]),
                 Tables\Actions\DeleteAction::make(),
             ])
             ->emptyStateHeading('No servers yet')

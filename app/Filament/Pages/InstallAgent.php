@@ -9,15 +9,9 @@ use Illuminate\Support\Str;
 
 class InstallAgent extends Page
 {
-    protected static ?string $navigationIcon = 'heroicon-o-plus-circle';
-
-    protected static ?string $navigationGroup = 'Monitoring';
-
-    protected static ?string $navigationLabel = 'Add Server';
-
     protected static ?string $title = 'Add Server';
 
-    protected static ?int $navigationSort = 2;
+    protected static bool $shouldRegisterNavigation = false;
 
     protected static string $view = 'filament.pages.install-agent';
 
@@ -67,6 +61,11 @@ class InstallAgent extends Page
         $host = config('app.url');
 
         return "curl -sSL {$host}/install.sh | SENTINEL_SERVER={$host} SENTINEL_TOKEN={$this->selectedToken} bash";
+    }
+
+    public function finishSetup(): void
+    {
+        $this->redirect(route('filament.admin.resources.agents.index'));
     }
 
     public function startOver(): void
