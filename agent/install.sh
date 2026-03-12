@@ -192,6 +192,12 @@ enabled = true
 suspicious_ports = 4444,5555,6666,7777,1337,31337,12345,54321,9001,6667
 check_dns = true
 alert_on_new_listening_ports = true
+
+[resource]
+enabled = true
+ram_threshold = 50
+cpu_threshold = 50
+disk_threshold = 50
 AGENTCONF
     chmod 600 /etc/sentinel/agent.conf
     ok "Config written to /etc/sentinel/agent.conf"

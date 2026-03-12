@@ -88,6 +88,12 @@ DEFAULT_CFG = {
         "check_dns": "true",
         "alert_on_new_listening_ports": "true",
     },
+    "resource": {
+        "enabled": "true",
+        "ram_threshold": "50",
+        "cpu_threshold": "50",
+        "disk_threshold": "50",
+    },
 }
 
 log = logging.getLogger("sentinel")
@@ -310,6 +316,10 @@ class Pusher(object):
         self.token = cfg.get("agent", "token", fallback="")
         self.interval = int(cfg.get("agent", "push_interval", fallback="30"))
         self.tags = cfg.get("agent", "tags", fallback="")
+        self.resource_enabled = cfg.getboolean("resource", "enabled", fallback=True)
+        self.ram_threshold = float(cfg.get("resource", "ram_threshold", fallback="50"))
+        self.cpu_threshold = float(cfg.get("resource", "cpu_threshold", fallback="50"))
+        self.disk_threshold = float(cfg.get("resource", "disk_threshold", fallback="50"))
         self._thread = threading.Thread(target=self._loop, daemon=True)
 
     def start(self):
@@ -327,7 +337,32 @@ class Pusher(object):
 
         self._push()
 
+    def _check_resources(self, metrics):
+        if not self.resource_enabled:
+            return
+
+        ram = metrics.get("ram_percent", 0)
+        if ram > self.ram_threshold:
+            self.am.fire("resource", "high", "High RAM usage",
+                         "RAM at {}% ({} MB / {} MB)".format(
+                             ram, metrics.get("ram_used_mb", "?"), metrics.get("ram_total_mb", "?")))
+
+        cpu = metrics.get("cpu_percent", 0)
+        if cpu > self.cpu_threshold:
+            self.am.fire("resource", "high", "High CPU load",
+                         "CPU at {}% (load {}, {} cores)".format(
+                             cpu, metrics.get("load_1m", "?"), metrics.get("cpu_count", "?")))
+
+        disk = metrics.get("disk_percent", 0)
+        if disk > self.disk_threshold:
+            self.am.fire("resource", "high", "High disk usage",
+                         "Disk at {}% ({} GB / {} GB)".format(
+                             disk, metrics.get("disk_used_gb", "?"), metrics.get("disk_total_gb", "?")))
+
     def _push(self):
+        metrics = _system_metrics()
+        self._check_resources(metrics)
+
         alerts = self.am.drain()
         payload = {
             "agent_id": self.agent_id,
@@ -336,7 +371,7 @@ class Pusher(object):
             "agent_ver": AGENT_VERSION,
             "tags": self.tags,
             "alerts": alerts,
-            "meta": dict({"python": platform.python_version()}, **_system_metrics()),
+            "meta": dict({"python": platform.python_version()}, **metrics),
         }
         body = json.dumps(payload).encode("utf-8")
         url = self.server_url.rstrip("/") + "/api/ingest"

@@ -75,6 +75,12 @@ class AlertGroup extends Model
             'network' => [
                 'default' => "Suspicious network activity detected. Investigate open connections and listening ports:\n\n1. Check listening ports: `ss -tlnp`\n2. Check established connections: `ss -tnp`\n3. Look for connections to known-bad ports or IPs\n4. Review firewall rules: `ufw status` or `iptables -L -n`\n5. If a new service appeared, verify it's authorized",
             ],
+            'resource' => [
+                'ram' => "RAM usage is above the alert threshold. Investigate what's consuming memory:\n\n1. Check top memory consumers: `ps aux --sort=-%mem | head -15`\n2. Check for memory leaks: `free -h` and compare over time\n3. Review OOM killer logs: `dmesg | grep -i 'out of memory'`\n4. Consider increasing RAM or optimizing high-usage services\n5. Restart memory-leaking services if identified",
+                'cpu' => "CPU load is above the alert threshold. Investigate what's driving the load:\n\n1. Check top CPU consumers: `ps aux --sort=-%cpu | head -15`\n2. Check load average trend: `uptime` and `sar -u 1 5`\n3. Look for runaway processes or cron jobs\n4. If a web server, check for traffic spikes in access logs\n5. Consider scaling or optimizing high-CPU services",
+                'disk' => "Disk usage is above the alert threshold. Free up space before the disk fills completely:\n\n1. Find largest files: `du -ah / | sort -rh | head -20`\n2. Check log sizes: `du -sh /var/log/*`\n3. Clean package cache: `apt clean` or `yum clean all`\n4. Remove old kernels: `apt autoremove`\n5. Check for large temp files: `du -sh /tmp /var/tmp`\n6. Consider adding storage or setting up log rotation",
+                'default' => "Server resource usage is above the alert threshold. Check `top`, `free -h`, and `df -h` to identify the pressure point and take action before it impacts service availability.",
+            ],
         ];
 
         $categorySuggestions = $suggestions[$category] ?? $suggestions['file_integrity'] ?? [];
