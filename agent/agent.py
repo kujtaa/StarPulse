@@ -157,6 +157,51 @@ def _csv(value):
     return [s.strip() for s in value.split(",") if s.strip()]
 
 
+def _system_metrics():
+    """Collect CPU, RAM, and disk usage from /proc and os.statvfs (Linux)."""
+    metrics = {}
+
+    try:
+        with open("/proc/meminfo", "r") as f:
+            mem = {}
+            for line in f:
+                parts = line.split()
+                if len(parts) >= 2:
+                    mem[parts[0].rstrip(":")] = int(parts[1])
+            total_kb = mem.get("MemTotal", 0)
+            avail_kb = mem.get("MemAvailable", mem.get("MemFree", 0))
+            used_kb = total_kb - avail_kb
+            metrics["ram_total_mb"] = round(total_kb / 1024)
+            metrics["ram_used_mb"] = round(used_kb / 1024)
+            metrics["ram_percent"] = round(used_kb / total_kb * 100, 1) if total_kb else 0
+    except (OSError, IOError, ZeroDivisionError):
+        pass
+
+    try:
+        with open("/proc/loadavg", "r") as f:
+            parts = f.read().split()
+            metrics["load_1m"] = float(parts[0])
+            metrics["load_5m"] = float(parts[1])
+            metrics["load_15m"] = float(parts[2])
+        metrics["cpu_count"] = os.cpu_count() or 1
+        metrics["cpu_percent"] = round(metrics["load_1m"] / metrics["cpu_count"] * 100, 1)
+    except (OSError, IOError, IndexError, ValueError):
+        pass
+
+    try:
+        st = os.statvfs("/")
+        total = st.f_blocks * st.f_frsize
+        free = st.f_bavail * st.f_frsize
+        used = total - free
+        metrics["disk_total_gb"] = round(total / (1024 ** 3), 1)
+        metrics["disk_used_gb"] = round(used / (1024 ** 3), 1)
+        metrics["disk_percent"] = round(used / total * 100, 1) if total else 0
+    except (OSError, IOError, ZeroDivisionError):
+        pass
+
+    return metrics
+
+
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
@@ -291,7 +336,7 @@ class Pusher(object):
             "agent_ver": AGENT_VERSION,
             "tags": self.tags,
             "alerts": alerts,
-            "meta": {"python": platform.python_version()},
+            "meta": dict({"python": platform.python_version()}, **_system_metrics()),
         }
         body = json.dumps(payload).encode("utf-8")
         url = self.server_url.rstrip("/") + "/api/ingest"

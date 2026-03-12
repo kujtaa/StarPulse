@@ -142,6 +142,23 @@ class AgentResource extends Resource
                                     ->label('IP Address')
                                     ->placeholder('Not connected yet'),
                             ]),
+                        Infolists\Components\Section::make('Resource Usage')
+                            ->icon('heroicon-o-chart-bar')
+                            ->columns(3)
+                            ->schema([
+                                Infolists\Components\TextEntry::make('meta.ram_used_mb')
+                                    ->label('RAM')
+                                    ->getStateUsing(fn (Agent $record): ?string => self::formatMetric($record, 'ram'))
+                                    ->placeholder('No data yet'),
+                                Infolists\Components\TextEntry::make('meta.cpu_percent')
+                                    ->label('CPU Load')
+                                    ->getStateUsing(fn (Agent $record): ?string => self::formatMetric($record, 'cpu'))
+                                    ->placeholder('No data yet'),
+                                Infolists\Components\TextEntry::make('meta.disk_used_gb')
+                                    ->label('Disk')
+                                    ->getStateUsing(fn (Agent $record): ?string => self::formatMetric($record, 'disk'))
+                                    ->placeholder('No data yet'),
+                            ]),
                         Infolists\Components\Section::make('System Details')
                             ->columns(3)
                             ->schema([
@@ -214,5 +231,26 @@ class AgentResource extends Resource
         return [
             'index' => Pages\ListAgents::route('/'),
         ];
+    }
+
+    protected static function formatMetric(Agent $record, string $type): ?string
+    {
+        $meta = $record->meta;
+        if (! is_array($meta)) {
+            return null;
+        }
+
+        return match ($type) {
+            'ram' => isset($meta['ram_used_mb'], $meta['ram_total_mb'])
+                ? "{$meta['ram_used_mb']} MB / {$meta['ram_total_mb']} MB ({$meta['ram_percent']}%)"
+                : null,
+            'cpu' => isset($meta['cpu_percent'], $meta['cpu_count'])
+                ? "{$meta['cpu_percent']}% ({$meta['cpu_count']} cores, load {$meta['load_1m']})"
+                : null,
+            'disk' => isset($meta['disk_used_gb'], $meta['disk_total_gb'])
+                ? "{$meta['disk_used_gb']} GB / {$meta['disk_total_gb']} GB ({$meta['disk_percent']}%)"
+                : null,
+            default => null,
+        };
     }
 }
