@@ -120,6 +120,7 @@ class AgentResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
+                Tables\Actions\DeleteAction::make(),
             ])
             ->emptyStateHeading('No servers yet')
             ->emptyStateDescription('Add your first server by installing the StarPulse agent.')

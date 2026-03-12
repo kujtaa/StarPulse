@@ -30,23 +30,23 @@
 
                 <form wire:submit="registerServer" class="space-y-4">
                     <div>
-                        <label for="registeredAddress" class="block text-sm font-medium text-gray-300 mb-1">
-                            IP Address or URL <span class="text-red-400">*</span>
+                        <label for="registeredAddress" class="fi-fo-field-wrp-label block text-sm font-medium mb-1">
+                            IP Address or URL <span class="text-danger-500">*</span>
                         </label>
                         <input
                             id="registeredAddress"
                             type="text"
                             wire:model="registeredAddress"
                             placeholder="e.g. 192.168.1.100 or server.example.com"
-                            class="w-full rounded-lg border-gray-600 bg-gray-800 text-white shadow-sm focus:border-cyan-500 focus:ring-cyan-500 placeholder-gray-500"
+                            class="fi-input block w-full rounded-lg border-none bg-white/5 py-1.5 px-3 text-sm text-gray-950 shadow-sm ring-1 ring-gray-950/10 focus:ring-2 focus:ring-primary-600 dark:bg-white/5 dark:text-white dark:ring-white/20"
                         />
                         @error('registeredAddress')
-                            <p class="mt-1 text-sm text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-danger-500">{{ $message }}</p>
                         @enderror
                     </div>
 
                     <div>
-                        <label for="serverLabel" class="block text-sm font-medium text-gray-300 mb-1">
+                        <label for="serverLabel" class="fi-fo-field-wrp-label block text-sm font-medium mb-1">
                             Label <span class="text-gray-500">(optional)</span>
                         </label>
                         <input
@@ -54,10 +54,10 @@
                             type="text"
                             wire:model="serverLabel"
                             placeholder="e.g. Production Web Server"
-                            class="w-full rounded-lg border-gray-600 bg-gray-800 text-white shadow-sm focus:border-cyan-500 focus:ring-cyan-500 placeholder-gray-500"
+                            class="fi-input block w-full rounded-lg border-none bg-white/5 py-1.5 px-3 text-sm text-gray-950 shadow-sm ring-1 ring-gray-950/10 focus:ring-2 focus:ring-primary-600 dark:bg-white/5 dark:text-white dark:ring-white/20"
                         />
                         @error('serverLabel')
-                            <p class="mt-1 text-sm text-red-400">{{ $message }}</p>
+                            <p class="mt-1 text-sm text-danger-500">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -93,7 +93,7 @@
                         <select
                             id="token-select"
                             wire:model.live="selectedToken"
-                            class="w-full rounded-lg border-gray-600 bg-gray-800 text-white shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
+                            class="fi-input block w-full rounded-lg border-none bg-white/5 py-1.5 px-3 text-sm text-gray-950 shadow-sm ring-1 ring-gray-950/10 focus:ring-2 focus:ring-primary-600 dark:bg-white/5 dark:text-white dark:ring-white/20"
                         >
                             @foreach ($this->getTokenOptions() as $label => $token)
                                 <option value="{{ $token }}">{{ $label }} — {{ Str::limit($token, 16) }}</option>
