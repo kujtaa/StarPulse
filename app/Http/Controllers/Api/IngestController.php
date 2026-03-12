@@ -42,11 +42,28 @@ class IngestController extends Controller
             'alerts.*.hostname' => 'nullable|string',
         ]);
 
+        $connectingIp = $request->ip();
+        $agentHostname = $data['hostname'] ?? null;
+
+        $pendingMatch = Agent::where('organization_id', $orgId)
+            ->whereNull('last_seen')
+            ->whereNotNull('registered_address')
+            ->where(function ($q) use ($connectingIp, $agentHostname) {
+                $q->where('registered_address', $connectingIp)
+                  ->when($agentHostname, fn ($q2) => $q2->orWhere('registered_address', $agentHostname)
+                      ->orWhere('hostname', $agentHostname));
+            })
+            ->first();
+
+        $registeredAddress = $pendingMatch?->registered_address;
+        $pendingMatch?->delete();
+
         $agent = Agent::updateOrCreate(
             ['id' => $data['agent_id'], 'organization_id' => $orgId],
             [
                 'hostname' => $data['hostname'] ?? null,
-                'ip' => $request->ip(),
+                'ip' => $connectingIp,
+                'registered_address' => $registeredAddress ?? null,
                 'os_info' => $data['os_info'] ?? null,
                 'agent_ver' => $data['agent_ver'] ?? null,
                 'last_seen' => now(),
@@ -60,20 +77,6 @@ class IngestController extends Controller
         if (! $agent->wasRecentlyCreated) {
             $agent->update(['last_seen' => now(), 'offline_alerted' => false]);
         }
-
-        $connectingIp = $request->ip();
-        $agentHostname = $data['hostname'] ?? null;
-
-        Agent::where('organization_id', $orgId)
-            ->where('id', '!=', $agent->id)
-            ->whereNull('last_seen')
-            ->whereNotNull('registered_address')
-            ->where(function ($q) use ($connectingIp, $agentHostname) {
-                $q->where('registered_address', $connectingIp)
-                  ->when($agentHostname, fn ($q2) => $q2->orWhere('registered_address', $agentHostname)
-                      ->orWhere('hostname', $agentHostname));
-            })
-            ->delete();
 
         $newCount = 0;
         $alerts = $data['alerts'] ?? [];
