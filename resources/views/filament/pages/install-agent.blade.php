@@ -1,8 +1,8 @@
 <x-filament-panels::page>
     <div class="space-y-6">
         <x-filament::section>
-            <x-slot name="heading">Install StarPulse Agent</x-slot>
-            <x-slot name="description">Deploy the monitoring agent on your servers with a single command.</x-slot>
+            <x-slot name="heading">Add a Server</x-slot>
+            <x-slot name="description">Run this command on any Linux server to connect it to your dashboard. It will appear on the Servers page within 60 seconds.</x-slot>
 
             <div class="space-y-4">
                 {{-- Token selector --}}

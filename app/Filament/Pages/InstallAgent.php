@@ -7,15 +7,15 @@ use Filament\Pages\Page;
 
 class InstallAgent extends Page
 {
-    protected static ?string $navigationIcon = 'heroicon-o-arrow-down-tray';
+    protected static ?string $navigationIcon = 'heroicon-o-plus-circle';
 
-    protected static ?string $navigationGroup = 'Settings';
+    protected static ?string $navigationGroup = 'Monitoring';
 
-    protected static ?string $navigationLabel = 'Install Agent';
+    protected static ?string $navigationLabel = 'Add Server';
 
-    protected static ?string $title = 'Install Agent';
+    protected static ?string $title = 'Add Server';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 2;
 
     protected static string $view = 'filament.pages.install-agent';
 

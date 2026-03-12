@@ -105,7 +105,17 @@ class AgentResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
-            ]);
+            ])
+            ->emptyStateHeading('No servers yet')
+            ->emptyStateDescription('Add your first server by installing the StarPulse agent.')
+            ->emptyStateIcon('heroicon-o-server-stack')
+            ->emptyStateActions([
+                Tables\Actions\Action::make('addServer')
+                    ->label('Add Server')
+                    ->icon('heroicon-o-plus')
+                    ->url(route('filament.admin.pages.install-agent')),
+            ])
+            ->poll('15s');
     }
 
     public static function getPages(): array
