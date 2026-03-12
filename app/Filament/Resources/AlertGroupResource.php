@@ -5,6 +5,8 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\AlertGroupResource\Pages;
 use App\Models\Agent;
 use App\Models\AlertGroup;
+use Filament\Infolists;
+use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -71,7 +73,70 @@ class AlertGroupResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true)
                     ->limit(60),
             ])
+            ->recordUrl(null)
+            ->recordAction('view')
             ->defaultSort('last_seen', 'desc')
+            ->actions([
+                Tables\Actions\ViewAction::make()
+                    ->modalHeading(fn (AlertGroup $record): string => $record->title)
+                    ->modalWidth('3xl')
+                    ->infolist([
+                        Infolists\Components\Section::make('Alert Details')
+                            ->columns(3)
+                            ->schema([
+                                Infolists\Components\TextEntry::make('severity')
+                                    ->badge()
+                                    ->color(fn (string $state): string => match ($state) {
+                                        'critical' => 'danger',
+                                        'high' => 'warning',
+                                        'medium' => 'warning',
+                                        'low' => 'info',
+                                        default => 'gray',
+                                    }),
+                                Infolists\Components\TextEntry::make('category')
+                                    ->badge(),
+                                Infolists\Components\TextEntry::make('hostname')
+                                    ->label('Server'),
+                            ]),
+                        Infolists\Components\Section::make('Timeline')
+                            ->columns(3)
+                            ->schema([
+                                Infolists\Components\TextEntry::make('first_seen')
+                                    ->label('First seen')
+                                    ->dateTime(),
+                                Infolists\Components\TextEntry::make('last_seen')
+                                    ->label('Last seen')
+                                    ->since(),
+                                Infolists\Components\TextEntry::make('count')
+                                    ->label('Occurrences')
+                                    ->badge()
+                                    ->color('primary'),
+                            ]),
+                        Infolists\Components\Section::make('Details')
+                            ->schema([
+                                Infolists\Components\TextEntry::make('last_detail')
+                                    ->label('Latest Detail')
+                                    ->markdown()
+                                    ->columnSpanFull()
+                                    ->placeholder('No detail provided'),
+                                Infolists\Components\KeyValueEntry::make('last_data')
+                                    ->label('Alert Data')
+                                    ->columnSpanFull()
+                                    ->placeholder('No structured data')
+                                    ->visible(fn (AlertGroup $record): bool => ! empty($record->last_data)),
+                            ]),
+                        Infolists\Components\Section::make('Recommended Action')
+                            ->icon('heroicon-o-light-bulb')
+                            ->iconColor('warning')
+                            ->schema([
+                                Infolists\Components\TextEntry::make('suggestion')
+                                    ->hiddenLabel()
+                                    ->markdown()
+                                    ->columnSpanFull()
+                                    ->prose(),
+                            ]),
+                    ]),
+            ])
             ->filters([
                 Tables\Filters\SelectFilter::make('severity')
                     ->options(array_combine(AlertGroup::SEVERITIES, array_map('ucfirst', AlertGroup::SEVERITIES))),
