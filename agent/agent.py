@@ -297,6 +297,7 @@ class Pusher(object):
         url = self.server_url.rstrip("/") + "/api/ingest"
         req = Request(url, data=body, method="POST")
         req.add_header("Content-Type", "application/json")
+        req.add_header("User-Agent", "StarPulse-Agent/{}".format(AGENT_VERSION))
         if self.token:
             req.add_header("X-Sentinel-Token", self.token)
         try:
