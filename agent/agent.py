@@ -41,7 +41,7 @@ except ImportError:
 if sys.version_info < (3, 6):
     sys.exit("Sentinel agent requires Python 3.6+")
 
-AGENT_VERSION = "3.1"
+AGENT_VERSION = "3.2"
 
 DEFAULT_CFG = {
     "agent": {
@@ -293,8 +293,14 @@ class AlertManager(object):
             self.pending.append(alert)
         log.info("[%s/%s] %s", category, severity, title)
 
+    MAX_QUEUE = 500
+
     def drain(self):
         with self.lock:
+            if len(self.pending) > self.MAX_QUEUE:
+                dropped = len(self.pending) - self.MAX_QUEUE
+                self.pending = collections.deque(list(self.pending)[-self.MAX_QUEUE:])
+                log.warning("Alert queue overflow — dropped %d oldest alerts", dropped)
             items = list(self.pending)
             self.pending.clear()
         return items
@@ -366,36 +372,46 @@ class Pusher(object):
                          "Disk at {}% ({} GB / {} GB)".format(
                              disk, metrics.get("disk_used_gb", "?"), metrics.get("disk_total_gb", "?")))
 
+    CHUNK_SIZE = 50
+
     def _push(self):
         metrics = _system_metrics()
         self._check_resources(metrics)
 
-        alerts = self.am.drain()
-        payload = {
+        all_alerts = self.am.drain()
+        chunks = [all_alerts[i:i + self.CHUNK_SIZE] for i in range(0, len(all_alerts), self.CHUNK_SIZE)] or [[]]
+
+        url = self.server_url.rstrip("/") + "/api/ingest"
+        base = {
             "agent_id": self.agent_id,
             "hostname": _hostname(),
             "os_info": _os_info(),
             "agent_ver": AGENT_VERSION,
             "tags": self.tags,
-            "alerts": alerts,
             "meta": dict({"python": platform.python_version()}, **metrics),
         }
-        body = json.dumps(payload).encode("utf-8")
-        url = self.server_url.rstrip("/") + "/api/ingest"
-        req = Request(url, data=body, method="POST")
-        req.add_header("Content-Type", "application/json")
-        req.add_header("User-Agent", "StarPulse-Agent/{}".format(AGENT_VERSION))
-        if self.token:
-            req.add_header("X-Sentinel-Token", self.token)
-        try:
-            resp = urlopen(req, timeout=15)
-            resp_body = resp.read()
-            log.info("Heartbeat OK -> %s (alerts=%d, status=%s)", url, len(alerts), resp.status)
-            if self.auto_update:
-                self._maybe_update(resp_body)
-        except Exception as exc:
-            log.warning("Push failed (%s) — re-queuing %d alerts", exc, len(alerts))
-            self.am.requeue(alerts)
+        last_resp_body = None
+
+        for idx, chunk in enumerate(chunks):
+            payload = dict(base, alerts=chunk)
+            body = json.dumps(payload).encode("utf-8")
+            req = Request(url, data=body, method="POST")
+            req.add_header("Content-Type", "application/json")
+            req.add_header("User-Agent", "StarPulse-Agent/{}".format(AGENT_VERSION))
+            if self.token:
+                req.add_header("X-Sentinel-Token", self.token)
+            try:
+                resp = urlopen(req, timeout=15)
+                last_resp_body = resp.read()
+                log.info("Heartbeat OK -> %s (chunk %d/%d, alerts=%d, status=%s)",
+                         url, idx + 1, len(chunks), len(chunk), resp.status)
+            except Exception as exc:
+                log.warning("Push failed (%s) — re-queuing %d alerts (chunk %d/%d)",
+                            exc, len(chunk), idx + 1, len(chunks))
+                self.am.requeue(chunk)
+
+        if self.auto_update and last_resp_body:
+            self._maybe_update(last_resp_body)
 
     # -- Auto-update --------------------------------------------------------
 
